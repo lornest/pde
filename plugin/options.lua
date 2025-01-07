@@ -34,7 +34,7 @@ opt.shada = { "'10", "<0", "s10", "h" }
 
 -- Decrease update time
 opt.updatetime = 250
-opt.timeoutlen = 300
+opt.timeoutlen = 1000
 
 opt.wrap = true
 opt.linebreak = true
