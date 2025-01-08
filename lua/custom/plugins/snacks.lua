@@ -116,18 +116,11 @@ return {
       desc = "Dismiss All Notifications",
     },
     {
-      "<c-/>",
+      "<c-`>",
       function()
         Snacks.terminal()
       end,
       desc = "Toggle Terminal",
-    },
-    {
-      "<c-_>",
-      function()
-        Snacks.terminal()
-      end,
-      desc = "which_key_ignore",
     },
     {
       "]]",
