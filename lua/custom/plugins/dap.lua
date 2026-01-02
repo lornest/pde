@@ -7,37 +7,21 @@ return {
       "theHamsta/nvim-dap-virtual-text",
       "nvim-neotest/nvim-nio",
       "williamboman/mason.nvim",
-      "mfussenegger/nvim-dap-python",
     },
     config = function()
       local dap = require "dap"
       local ui = require "dapui"
-      local dap_python = require "dap-python"
 
       require("dapui").setup()
       require("dap-go").setup()
-      require("dap-python").setup "~/.virtualenvs/debugpy/bin/python"
 
       vim.keymap.set("n", "<space>b", dap.toggle_breakpoint)
-      vim.keymap.set("n", "<space>gb", dap.run_to_cursor)
+      vim.keymap.set("n", "<space>rb", dap.run_to_cursor)
 
       -- Eval var under cursor
       vim.keymap.set("n", "<space>?", function()
         require("dapui").eval(nil, { enter = true })
       end)
-
-      -- Python-specific mappings
-      vim.keymap.set("n", "<leader>dt", function()
-        dap_python.test_method()
-      end, { desc = "Debug current test method" })
-
-      vim.keymap.set("n", "<leader>df", function()
-        dap_python.test_class()
-      end, { desc = "Debug current test class" })
-
-      vim.keymap.set("v", "<leader>ds", function()
-        dap_python.debug_selection()
-      end, { desc = "Debug selected code" })
 
       vim.keymap.set("n", "<F1>", dap.continue)
       vim.keymap.set("n", "<F2>", dap.step_into)

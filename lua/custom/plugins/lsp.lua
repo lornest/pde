@@ -34,8 +34,6 @@ return {
         capabilities = require("cmp_nvim_lsp").default_capabilities()
       end
 
-      local lspconfig = require "lspconfig"
-
       local servers = {
         bashls = true,
         gopls = {
@@ -69,7 +67,7 @@ return {
 
         -- Enabled biome formatting, turn off all the other ones generally
         biome = true,
-        tsserver = {
+        ts_ls = {
           server_capabilities = {
             documentFormattingProvider = false,
           },
@@ -152,7 +150,7 @@ return {
           capabilities = capabilities,
         }, config)
 
-        lspconfig[name].setup(config)
+        vim.lsp.config[name] = config
       end
 
       local disable_semantic_tokens = {
@@ -207,6 +205,7 @@ return {
         formatters_by_ft = {
           lua = { "stylua" },
           blade = { "blade-formatter" },
+          python = { "autoflake", "black" },
         },
       }
 
