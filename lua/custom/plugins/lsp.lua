@@ -1,8 +1,16 @@
 return {
   {
+    "folke/lazydev.nvim",
+    ft = "lua",
+    opts = {
+      library = {
+        { path = "${3rd}/luv/library", words = { "vim%.uv" } },
+      },
+    },
+  },
+  {
     "neovim/nvim-lspconfig",
     dependencies = {
-      "folke/neodev.nvim",
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
       "WhoIsSethDaniel/mason-tool-installer.nvim",
@@ -10,24 +18,33 @@ return {
       { "j-hui/fidget.nvim", opts = {} },
       { "https://git.sr.ht/~whynothugo/lsp_lines.nvim" },
 
-      -- Autoformatting
       "stevearc/conform.nvim",
-
-      -- Schema information
       "b0o/SchemaStore.nvim",
+
+      { "smjonas/inc-rename.nvim", opts = {} },
+      {
+        "aznhe21/actions-preview.nvim",
+        opts = {
+          telescope = {
+            sorting_strategy = "ascending",
+            layout_strategy = "vertical",
+            layout_config = {
+              width = 0.8,
+              height = 0.9,
+              prompt_position = "top",
+              preview_cutoff = 20,
+              preview_height = function(_, _, max_lines)
+                return max_lines - 15
+              end,
+            },
+          },
+        },
+      },
     },
     config = function()
-      -- Don't do LSP stuff if we're in Obsidian Edit mode
       if vim.g.obsidian then
         return
       end
-
-      require("neodev").setup {
-        -- library = {
-        --   plugins = { "nvim-dap-ui" },
-        --   types = true,
-        -- },
-      }
 
       local capabilities = nil
       if pcall(require, "cmp_nvim_lsp") then
@@ -65,7 +82,6 @@ return {
         pyright = true,
         mojo = { manual_install = true },
 
-        -- Enabled biome formatting, turn off all the other ones generally
         biome = true,
         ts_ls = {
           server_capabilities = {
@@ -84,12 +100,6 @@ return {
           },
         },
 
-        -- cssls = {
-        --   server_capabilities = {
-        --     documentFormattingProvider = false,
-        --   },
-        -- },
-
         yamlls = {
           settings = {
             yaml = {
@@ -97,7 +107,7 @@ return {
                 enable = false,
                 url = "",
               },
-              -- schemas = require("schemastore").yaml.schemas(),
+              schemas = require("schemastore").yaml.schemas(),
             },
           },
         },
@@ -142,19 +152,31 @@ return {
       vim.list_extend(ensure_installed, servers_to_install)
       require("mason-tool-installer").setup { ensure_installed = ensure_installed }
 
-      for name, config in pairs(servers) do
-        if config == true then
-          config = {}
-        end
-        config = vim.tbl_deep_extend("force", {}, {
-          capabilities = capabilities,
-        }, config)
-
-        vim.lsp.config[name] = config
-      end
+      local lspconfig = require "lspconfig"
 
       local disable_semantic_tokens = {
         lua = true,
+      }
+
+      require("mason-lspconfig").setup {
+        handlers = {
+          function(server_name)
+            if not lspconfig[server_name] then
+              return
+            end
+            local config = servers[server_name]
+            if config == false then
+              return
+            end
+            if config == true then
+              config = {}
+            end
+            config = vim.tbl_deep_extend("force", {}, {
+              capabilities = capabilities,
+            }, config or {})
+            lspconfig[server_name].setup(config)
+          end,
+        },
       }
 
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -170,15 +192,20 @@ return {
           local builtin = require "telescope.builtin"
 
           vim.opt_local.omnifunc = "v:lua.vim.lsp.omnifunc"
-          vim.keymap.set("n", "gd", builtin.lsp_definitions, { buffer = 0 })
-          vim.keymap.set("n", "gr", builtin.lsp_references, { buffer = 0 })
-          vim.keymap.set("n", "gD", vim.lsp.buf.declaration, { buffer = 0 })
-          vim.keymap.set("n", "gT", vim.lsp.buf.type_definition, { buffer = 0 })
-          vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = 0 })
+          vim.keymap.set("n", "gd", builtin.lsp_definitions, { buffer = bufnr, desc = "Goto Definition" })
+          vim.keymap.set("n", "gr", builtin.lsp_references, { buffer = bufnr, desc = "Goto References" })
+          vim.keymap.set("n", "gD", vim.lsp.buf.declaration, { buffer = bufnr, desc = "Goto Declaration" })
+          vim.keymap.set("n", "gT", vim.lsp.buf.type_definition, { buffer = bufnr, desc = "Goto Type Definition" })
+          vim.keymap.set("n", "gI", builtin.lsp_implementations, { buffer = bufnr, desc = "Goto Implementation" })
+          vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = bufnr, desc = "Hover Documentation" })
+          vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, { buffer = bufnr, desc = "Signature Help" })
 
-          vim.keymap.set("n", "<space>cr", vim.lsp.buf.rename, { buffer = 0 })
-          vim.keymap.set("n", "<space>ca", vim.lsp.buf.code_action, { buffer = 0 })
-          vim.keymap.set("n", "<space>wd", builtin.lsp_document_symbols, { buffer = 0 })
+          vim.keymap.set("n", "<space>cr", function()
+            return ":IncRename " .. vim.fn.expand "<cword>"
+          end, { buffer = bufnr, desc = "Rename Symbol", expr = true })
+          vim.keymap.set({ "n", "v" }, "<space>ca", require("actions-preview").code_actions, { buffer = bufnr, desc = "Code Action" })
+          vim.keymap.set("n", "<space>wd", builtin.lsp_document_symbols, { buffer = bufnr, desc = "Document Symbols" })
+          vim.keymap.set("n", "<space>ws", builtin.lsp_dynamic_workspace_symbols, { buffer = bufnr, desc = "Workspace Symbols" })
 
           local filetype = vim.bo[bufnr].filetype
           if disable_semantic_tokens[filetype] then
@@ -236,7 +263,25 @@ return {
       })
 
       require("lsp_lines").setup()
-      vim.diagnostic.config { virtual_text = true, virtual_lines = false }
+      vim.diagnostic.config {
+        virtual_text = true,
+        virtual_lines = false,
+        signs = {
+          text = {
+            [vim.diagnostic.severity.ERROR] = "󰅚",
+            [vim.diagnostic.severity.WARN] = "󰀪",
+            [vim.diagnostic.severity.HINT] = "󰌶",
+            [vim.diagnostic.severity.INFO] = "󰋽",
+          },
+        },
+        underline = true,
+        update_in_insert = false,
+        severity_sort = true,
+        float = {
+          border = "rounded",
+          source = true,
+        },
+      }
 
       vim.keymap.set("", "<leader>l", function()
         local config = vim.diagnostic.config() or {}

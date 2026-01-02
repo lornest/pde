@@ -6,9 +6,8 @@ set("n", "<c-k>", "<c-w><c-k>")
 set("n", "<c-l>", "<c-w><c-l>")
 set("n", "<c-h>", "<c-w><c-h>")
 
--- [[ Basic Keymaps ]]
 vim.api.nvim_create_user_command("GP", function()
-  require("FTerm").scratch { cmd = { "git", "pull" } }
+  require("snacks").terminal({ "git", "pull" }, { interactive = false })
 end, { bang = true })
 
 -- Keymaps for better default experience
