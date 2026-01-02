@@ -5,7 +5,48 @@ return {
   ---@type snacks.Config
   opts = {
     bigfile = { enabled = true },
-    dashboard = { enabled = true },
+    dashboard = {
+      enabled = true,
+      preset = {
+        keys = {
+          { icon = " ", key = "f", desc = "Find File", action = ":lua Snacks.dashboard.pick('files')" },
+          { icon = " ", key = "g", desc = "Live Grep", action = ":lua Snacks.dashboard.pick('live_grep')" },
+          { icon = " ", key = "r", desc = "Recent Files", action = ":lua Snacks.dashboard.pick('oldfiles')" },
+          { icon = " ", key = "s", desc = "Restore Session", action = ":lua require('persistence').load()" },
+          { icon = " ", key = "c", desc = "Config", action = ":lua Snacks.dashboard.pick('files', {cwd = vim.fn.stdpath('config')})" },
+          { icon = "󰒲 ", key = "l", desc = "Lazy", action = ":Lazy" },
+          { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
+          { icon = " ", key = "q", desc = "Quit", action = ":qa" },
+        },
+      },
+      sections = {
+        {
+          text = {
+            { "█▀▀▄ █▀▀▀ █▀▀█ ", hl = "SnacksDashboardMuted" },
+            { "█  █ █ █▀▄▀█", hl = "SnacksDashboardBold" },
+          },
+          align = "center",
+          padding = 0,
+        },
+        {
+          text = {
+            { "█  █ █▀▀▀ █  █ ", hl = "SnacksDashboardMuted" },
+            { "▀▄▄▀ █ █   █", hl = "SnacksDashboardBold" },
+          },
+          align = "center",
+          padding = 0,
+        },
+        {
+          text = {
+            { "▀  ▀ ▀▀▀▀ ▀▀▀▀ ", hl = "SnacksDashboardMuted" },
+            { " ▀▀  ▀ ▀   ▀", hl = "SnacksDashboardBold" },
+          },
+          align = "center",
+          padding = 1,
+        },
+        { section = "keys", gap = 1, padding = 1 },
+      },
+    },
     indent = { enabled = true },
     input = { enabled = true },
     notifier = {
@@ -23,6 +64,78 @@ return {
     },
   },
   keys = {
+    {
+      "<leader>a",
+      function()
+        local actions = {
+          {
+            name = "  Find File",
+            action = function()
+              Snacks.dashboard.pick "files"
+            end,
+          },
+          {
+            name = "  Find Text",
+            action = function()
+              Snacks.dashboard.pick "live_grep"
+            end,
+          },
+          {
+            name = "  Recent Files",
+            action = function()
+              Snacks.dashboard.pick "oldfiles"
+            end,
+          },
+          {
+            name = "  Config",
+            action = function()
+              Snacks.dashboard.pick("files", { cwd = vim.fn.stdpath "config" })
+            end,
+          },
+          {
+            name = "  Restore Session",
+            action = function()
+              require("persistence").load()
+            end,
+          },
+          {
+            name = "  Select Session",
+            action = function()
+              require("persistence").select()
+            end,
+          },
+          {
+            name = "󰒲  Lazy",
+            action = function()
+              vim.cmd "Lazy"
+            end,
+          },
+          {
+            name = "  New File",
+            action = function()
+              vim.cmd "ene | startinsert"
+            end,
+          },
+          {
+            name = "  Quit",
+            action = function()
+              vim.cmd "qa"
+            end,
+          },
+        }
+        vim.ui.select(actions, {
+          prompt = "Actions",
+          format_item = function(item)
+            return item.name
+          end,
+        }, function(choice)
+          if choice then
+            choice.action()
+          end
+        end)
+      end,
+      desc = "Actions",
+    },
     {
       "<leader>z",
       function()
@@ -158,6 +271,15 @@ return {
     },
   },
   init = function()
+    local function set_dashboard_hl()
+      vim.api.nvim_set_hl(0, "SnacksDashboardMuted", { fg = "#7c6f64" })
+      vim.api.nvim_set_hl(0, "SnacksDashboardBold", { fg = "#8ec07c", bold = true })
+      vim.api.nvim_set_hl(0, "SnacksDashboardKey", { fg = "#fe8019", bold = true })
+      vim.api.nvim_set_hl(0, "SnacksDashboardDesc", { fg = "#a89984" })
+    end
+    vim.api.nvim_create_autocmd({ "ColorScheme", "VimEnter" }, { callback = set_dashboard_hl })
+    vim.schedule(set_dashboard_hl)
+
     vim.api.nvim_create_autocmd("User", {
       pattern = "VeryLazy",
       callback = function()

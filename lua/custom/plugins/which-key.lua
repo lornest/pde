@@ -5,6 +5,7 @@ return {
     preset = "modern",
     delay = 300,
     spec = {
+      { "<leader>a", group = "actions", icon = "" },
       { "<leader>b", group = "buffer" },
       { "<leader>c", group = "code" },
       { "<leader>g", group = "git" },
