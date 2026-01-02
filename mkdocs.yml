@@ -1,0 +1,13 @@
+site_name: nvim-config
+site_description: Neovim configuration documentation
+
+plugins:
+  - techdocs-core
+
+docs_dir: docs
+
+nav:
+  - Home: README.md
+  - Keymaps: keymaps.md
+  - Plugins: plugins.md
+  - Tips: tips.md
