@@ -18,6 +18,7 @@ TREE_SITTER_VERSION="${TREE_SITTER_VERSION:-v0.27.0}"
 NODE_VERSION="${NODE_VERSION:-lts}"   # "lts" resolves the current LTS
 OPT_DIR="${OPT_DIR:-/opt}"
 BIN_DIR="${BIN_DIR:-/usr/local/bin}"
+BOOTSTRAP_TIMEOUT="${BOOTSTRAP_TIMEOUT:-1800}"  # seconds to wait for Mason
 
 # --- flags -------------------------------------------------------------------
 SKIP_APT=0
@@ -41,6 +42,7 @@ Options:
 Environment overrides:
   NVIM_VERSION (default v0.12.5)   TREE_SITTER_VERSION (default v0.27.0)
   NODE_VERSION (default lts)       OPT_DIR / BIN_DIR
+  BOOTSTRAP_TIMEOUT (default 1800) seconds to wait for language servers
 EOF
 }
 
@@ -111,9 +113,13 @@ info "config: $REPO_ROOT"
 # fd-find         : used by snacks picker/explorer
 # xz-utils        : extracts the Node.js tarball
 # bear/cmake/gdb  : C development (compile_commands.json, builds, debugging)
+# clangd          : Mason's clangd is x86_64-only on Linux (its upstream ships a
+#                   single `clangd-linux` build), so on arm64 Mason cannot
+#                   install it at all. apt's clangd works on both arches and is
+#                   found on PATH, so C support does not depend on Mason here.
 APT_PACKAGES=(
   build-essential ca-certificates cmake curl git tar unzip xz-utils
-  ripgrep fd-find libsqlite3-dev bear gdb
+  ripgrep fd-find libsqlite3-dev bear gdb clangd
 )
 
 step "System packages"
@@ -274,30 +280,111 @@ if [ "$SKIP_BOOTSTRAP" -eq 1 ]; then
 elif [ "$DRY_RUN" -eq 1 ]; then
   skip "dry-run"
 else
+  boot_log="$(mktemp)"; boot_report="$(mktemp)"
+  export BOOTSTRAP_REPORT="$boot_report"
   info "syncing plugins (this clones ~50 repos, give it a minute)"
   nvim --headless "+Lazy! sync" +qa 2>&1 | tail -5 || warn "Lazy sync reported problems"
 
-  info "installing parsers and language servers (up to 10 minutes)"
-  nvim --headless -c 'lua
+  # Wait for installs to settle rather than sleeping a fixed amount: downloading
+  # ~18 servers over a slow link genuinely takes a while, and some packages have
+  # no build for this platform and never install at all.
+  info "installing parsers and language servers (up to $((BOOTSTRAP_TIMEOUT / 60)) minutes)"
+  BOOTSTRAP_TIMEOUT="$BOOTSTRAP_TIMEOUT" nvim --headless -c 'lua
     local ts = require("nvim-treesitter")
+    local limit = tonumber(vim.env.BOOTSTRAP_TIMEOUT) or 1800
     local mason_done, last, stable = false, -1, 0
+
+    -- MasonToolsUpdateCompleted is only a hint: mason-tool-installer skips its
+    -- on_close callback when a package is already installing, so a package that
+    -- cannot install on this platform can stop the event ever firing. Poll
+    -- Mason for actual in-flight installs instead, and treat the event as a
+    -- bonus signal rather than the thing we depend on.
     vim.api.nvim_create_autocmd("User", {
       pattern = "MasonToolsUpdateCompleted",
       callback = function() mason_done = true end,
     })
+
+    local function installing()
+      local ok, reg = pcall(require, "mason-registry")
+      if not ok then return false end
+      for _, p in ipairs(reg.get_all_packages()) do
+        if p:is_installing() then return true end
+      end
+      return false
+    end
+
     local start = vim.uv.now()
     local timer = vim.uv.new_timer()
-    timer:start(3000, 3000, vim.schedule_wrap(function()
+    timer:start(5000, 5000, vim.schedule_wrap(function()
       local n = #ts.get_installed()
       if n == last then stable = stable + 1 else stable, last = 0, n end
-      local elapsed = (vim.uv.now() - start) / 1000
-      -- done when parsers stopped arriving and mason has reported in
-      if (stable >= 4 and mason_done) or elapsed > 600 then
+      local elapsed = math.floor((vim.uv.now() - start) / 1000)
+      local busy = installing()
+
+      if elapsed % 30 < 5 then
+        io.stderr:write(("    ... %ds elapsed, %d parsers, mason %s\n")
+          :format(elapsed, n, busy and "installing" or (mason_done and "done" or "idle")))
+      end
+
+      -- Settled: nothing installing, parsers stopped arriving, and we gave the
+      -- installs at least 60s to actually get going.
+      local settled = elapsed > 60 and not busy and stable >= 3
+
+      if settled or (mason_done and stable >= 3) or elapsed > limit then
+        mason_done = mason_done or settled
         timer:stop()
-        print(("parsers installed: %d  mason completed: %s"):format(n, tostring(mason_done)))
+        local ok, reg = pcall(require, "mason-registry")
+        local pkgs = ok and reg.get_installed_package_names() or {}
+        table.sort(pkgs)
+        -- Write a report file rather than printing: headless `print` does not
+        -- reliably terminate lines, so consecutive prints run together and
+        -- anything parsing them by line silently sees nothing.
+        vim.fn.writefile({
+          "parsers=" .. n,
+          "mason_completed=" .. tostring(mason_done),
+          "packages=" .. table.concat(pkgs, " "),
+        }, vim.env.BOOTSTRAP_REPORT)
         vim.cmd("qa!")
       end
-    end))' 2>&1 | tail -5 || warn "bootstrap reported problems"
+    end))' > "$boot_log" 2>&1 || warn "bootstrap reported problems"
+
+  grep -E '^\s+\.\.\.' "$boot_log" | tail -3 || true
+
+  if [ ! -s "$boot_report" ]; then
+    warn "could not determine bootstrap result; check with :Mason inside nvim"
+    installed_pkgs=""
+  else
+    parsers="$(sed -n 's/^parsers=//p' "$boot_report")"
+    mason_completed="$(sed -n 's/^mason_completed=//p' "$boot_report")"
+    installed_pkgs="$(sed -n 's/^packages=//p' "$boot_report")"
+    info "parsers: $parsers   mason packages: $(printf '%s' "$installed_pkgs" | wc -w | tr -d ' ')"
+    if [ "$mason_completed" != "true" ]; then
+      warn "language server installs did not all finish within ${BOOTSTRAP_TIMEOUT}s."
+      warn "re-run this script (it is idempotent) to pick up stragglers."
+    fi
+  fi
+
+  # Report anything the config asked for that is not present. Tools needing a
+  # toolchain we did not install are expected to be missing, so say why.
+  for want in lua-language-server stylua codelldb bash-language-server \
+              typescript-language-server json-lsp yaml-language-server; do
+    case " $installed_pkgs " in
+      *" $want "*) ;;
+      *) warn "not installed: $want" ;;
+    esac
+  done
+  # clangd comes from Mason on x86_64 or from apt on arm64 -- either is fine,
+  # so check the binary rather than the Mason package list.
+  case " $installed_pkgs " in
+    *" clangd "*) ;;
+    *) have clangd || warn "not installed: clangd (C/C++ language server)" ;;
+  esac
+  for want in gopls delve; do
+    case " $installed_pkgs " in
+      *" $want "*) ;;
+      *) info "not installed: $want (needs a Go toolchain)" ;;
+    esac
+  done
 fi
 
 # --- done --------------------------------------------------------------------

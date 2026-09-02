@@ -175,9 +175,23 @@ return {
       -- mason-lspconfig enables every server it installs (`automatic_enable`),
       -- so we only need to enable the ones Mason does not manage.
       require("mason-lspconfig").setup()
+
+      -- mason-lspconfig only auto-enables servers that Mason itself installed,
+      -- so anything provided by the system is configured but never started.
+      -- That is not hypothetical: Mason has no clangd build for linux_arm64,
+      -- where clangd comes from the distro instead. Enable any server whose
+      -- command actually resolves; vim.lsp.enable is idempotent, so overlapping
+      -- with mason-lspconfig is harmless.
       for name, config in pairs(servers) do
-        if type(config) == "table" and config.manual_install then
-          vim.lsp.enable(name)
+        if config ~= false then
+          local manual = type(config) == "table" and config.manual_install
+          local resolved = vim.lsp.config[name]
+          local cmd = resolved and resolved.cmd
+          local exe = type(cmd) == "table" and cmd[1] or nil
+
+          if manual or (exe and vim.fn.executable(exe) == 1) then
+            vim.lsp.enable(name)
+          end
         end
       end
 
