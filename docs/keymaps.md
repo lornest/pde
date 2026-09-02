@@ -24,16 +24,6 @@
 | `N` | Previous search result (centered) |
 | `j` / `k` | Line navigation (respects wrap) |
 
-### Flash (Enhanced Motions)
-
-| Key | Mode | Action |
-|-----|------|--------|
-| `s` | n, x, o | Flash jump to character |
-| `S` | n, x, o | Flash treesitter select |
-| `r` | o | Remote flash (operator pending) |
-| `R` | o, x | Treesitter search |
-| `<C-s>` | c | Toggle flash in search |
-
 ## File Explorer (Oil)
 
 | Key | Action |
@@ -99,7 +89,7 @@
 
 | Key | Action |
 |-----|--------|
-| `<Space>cr` | Rename symbol (with preview) |
+| `<leader>cr` | Rename symbol (with preview) |
 | `<Space>ca` | Code actions (with preview) |
 | `<Space>wd` | Document symbols |
 | `<Space>ws` | Workspace symbols |
@@ -157,12 +147,9 @@
 
 ## Treesitter
 
-### Incremental Selection
-
-| Key | Action |
-|-----|--------|
-| `<C-Space>` | Start/expand selection |
-| `<BS>` | Shrink selection |
+> Text objects and movements come from `nvim-treesitter-textobjects`.
+> Lowercase movements jump to the **start** of a node, uppercase to the **end**.
+> `mini.ai` additionally extends the built-in `a`/`i` text objects.
 
 ### Text Objects
 
@@ -213,6 +200,9 @@
 
 ## Debugging (DAP)
 
+> Adapters: **delve** for Go, **codelldb** for C/C++/Rust.
+> Starting a session prompts for the binary to launch (remembered per session).
+
 | Key | Action |
 |-----|--------|
 | `<Space>b` | Toggle breakpoint |
@@ -224,6 +214,36 @@
 | `F4` | Step out |
 | `F5` | Step back |
 | `F13` | Restart |
+
+## opencode (AI assistant)
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `<leader>oa` | n, x | Ask opencode |
+| `<leader>os` | n, x | Select opencode action |
+| `<leader>oo` | n, t | Toggle opencode |
+| `go` | n, x | Add range to opencode (operator) |
+| `goo` | n | Add current line to opencode |
+
+### Prompts
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `<leader>od` | n, x | Explain diagnostics |
+| `<leader>of` | n, x | Fix diagnostics |
+| `<leader>or` | n, x | Review code |
+| `<leader>oe` | n, x | Explain code |
+| `<leader>ot` | n, x | Add tests |
+| `<leader>oi` | n, x | Implement code |
+
+### Sessions
+
+| Key | Action |
+|-----|--------|
+| `<leader>on` | New session |
+| `<leader>ol` | List sessions |
+| `<leader>oq` | Interrupt |
+| `<S-C-u>` / `<S-C-d>` | Scroll opencode up/down |
 
 ## Snacks Utilities
 
@@ -295,9 +315,12 @@
 
 | Key | Action |
 |-----|--------|
-| `sa` | Add surrounding |
-| `sd` | Delete surrounding |
-| `sr` | Replace surrounding |
+| `gsa` | Add surrounding |
+| `gsd` | Delete surrounding |
+| `gsr` | Replace surrounding |
+| `gsf` / `gsF` | Find surrounding (right/left) |
+| `gsh` | Highlight surrounding |
+| `gsn` | Update `n_lines` |
 
 ### Split/Join
 

@@ -5,10 +5,15 @@
 ### First Launch Checklist
 ```vim
 :Lazy sync              " Install all plugins
-:TSUpdate               " Install treesitter parsers  
-:MasonToolsInstall      " Install LSP servers and tools
+:MasonToolsInstall      " Install LSP servers, formatters and debug adapters
 :checkhealth            " Verify everything is working
 ```
+
+Treesitter parsers install themselves on startup (and on first sight of a new
+filetype), so there is nothing to run for them. Use `:TSUpdate` to refresh
+parsers after a plugin update, and `:checkhealth nvim-treesitter` to inspect them.
+
+Requires the `tree-sitter` CLI on your `PATH` (`brew install tree-sitter-cli`).
 
 ### Finding Your Way
 - Press `<leader>?` to see all buffer-local keymaps
@@ -37,13 +42,6 @@ gI      → Find implementations
 <C-i>   → Jump forward
 ```
 
-### Flash Jump (Fastest Navigation)
-1. Press `s`
-2. Type 1-2 characters you want to jump to
-3. Press the highlighted label
-
-**Pro tip:** Use `S` to select treesitter nodes (great for selecting functions/blocks).
-
 ### File Explorer
 - `-` from any buffer opens the parent directory
 - Edit filenames like a buffer, then save to rename
@@ -55,7 +53,7 @@ gI      → Find implementations
 
 ### Rename Symbol Everywhere
 1. Place cursor on symbol
-2. Press `<Space>cr`
+2. Press `<leader>cr`
 3. Type new name (see preview)
 4. Press `<CR>` to confirm
 
@@ -66,18 +64,22 @@ gI      → Find implementations
 4. Press `<CR>` to apply
 
 ### Multi-cursor Alternative
-Use treesitter selection + substitute:
+Select a code-aware region, then substitute inside it:
 ```
-<C-Space>   → Start selection at cursor
-<C-Space>   → Expand to parent node
-:s/old/new/ → Substitute in selection
+vaf          → Visually select the whole function
+vic          → Visually select inside a class
+:s/old/new/g → Substitute within the selection
 ```
+
+**Note:** treesitter incremental selection (`<C-Space>`) was removed when
+nvim-treesitter moved to its `main` branch. Use the text objects above, or
+`mini.ai` (`va)`, `vi"`, …), to select regions instead.
 
 ### Surround Operations
 ```
-saiw"   → Add " around word
-sd"     → Delete surrounding "
-sr"'    → Replace " with '
+gsaiw"   → Add " around word
+gsd"     → Delete surrounding "
+gsr"'    → Replace " with '
 ```
 
 ### Split/Join
@@ -119,7 +121,9 @@ Works on function arguments, arrays, objects, etc.
 
 ---
 
-## Debugging (Go)
+## Debugging
+
+Adapters: **delve** for Go, **codelldb** for C/C++/Rust.
 
 ### Basic Debug Session
 1. Set breakpoint: `<Space>b`
@@ -127,10 +131,31 @@ Works on function arguments, arrays, objects, etc.
 3. Step through: `F2` (into), `F3` (over), `F4` (out)
 4. Inspect variable: `<Space>?`
 
-### Debug Current Test
+### Debug Current Test (Go)
 ```vim
 :lua require('dap-go').debug_test()
 ```
+
+### Debugging C/C++/Rust
+`F1` prompts for the binary to launch (with file completion) and for any
+arguments. The path is remembered for the rest of the session, so subsequent
+runs just need `F1`.
+
+**macOS: build with debug info that survives linking.** Clang leaves DWARF in the
+`.o` files rather than the executable. A one-step build compiles to a *temporary*
+object file and deletes it during linking, taking the debug info with it — the
+binary runs fine but **no breakpoint will ever bind**:
+
+```
+warning: no debug symbols in executable (-arch arm64)
+```
+
+Either keep the object files (compile and link as separate steps, which any
+normal Makefile or CMake build already does), or run `dsymutil <binary>` after
+linking while the `.o` files still exist.
+
+If a breakpoint is accepted but never hits, check for debug symbols before
+suspecting the config.
 
 ---
 
@@ -228,7 +253,7 @@ K               → Full documentation popup
 
 ### Search & Replace in Selection
 ```
-<C-Space>       → Select code block
+vaf             → Select a function (or vic, val, …)
 :s/old/new/g    → Replace in selection
 ```
 
@@ -250,6 +275,19 @@ Add to the file:
 
 ### Inlay Hints
 Toggle with `<leader>uh` to see/hide type hints.
+
+### C/C++: give clangd a compile database
+Without one, clangd guesses your include paths and flags, so you get spurious
+`'foo.h' file not found` errors on a project that compiles fine.
+
+```bash
+cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON    # CMake
+bear -- make                                # Make (brew install bear)
+```
+
+For something small, a `compile_flags.txt` at the project root works too — one
+flag per line (`-I./include`, `-std=c11`). Any of these also gives clangd a root
+marker to anchor the project.
 
 ---
 
@@ -296,7 +334,12 @@ ls.add_snippets("LANG", {
 ```
 
 ### Add New Treesitter Parser
-Edit `lua/custom/plugins/treesitter.lua`, add to `ensure_installed`.
+Parsers install automatically the first time you open a matching filetype. To
+install one up front, add it to `ensure_installed` in
+`lua/custom/plugins/treesitter.lua`, then `:TSInstall <lang>` (or restart).
+
+Use `:checkhealth nvim-treesitter` to see what is installed and which queries
+(highlight/indent/fold/injection) each parser has.
 
 ---
 
@@ -308,11 +351,11 @@ Edit `lua/custom/plugins/treesitter.lua`, add to `ensure_installed`.
 | Search text | `<Space>sg` |
 | Go to definition | `gd` |
 | Find references | `gr` |
-| Rename | `<Space>cr` |
+| Rename | `<leader>cr` |
 | Code action | `<Space>ca` |
 | Next error | `]d` |
 | Stage hunk | `<leader>hs` |
 | Open Lazygit | `<leader>gg` |
 | File explorer | `-` or `<leader>e` |
 | Toggle terminal | `<c-\`>` |
-| Flash jump | `s` |
+| Ask opencode | `<leader>oa` |

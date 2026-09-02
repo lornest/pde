@@ -6,7 +6,7 @@ return {
       "rcarriga/nvim-dap-ui",
       "theHamsta/nvim-dap-virtual-text",
       "nvim-neotest/nvim-nio",
-      "williamboman/mason.nvim",
+      "mason-org/mason.nvim",
     },
     config = function()
       local dap = require "dap"
@@ -14,6 +14,41 @@ return {
 
       require("dapui").setup()
       require("dap-go").setup()
+
+      -- Native debugging (C/C++/Rust) via codelldb, installed by Mason.
+      dap.adapters.codelldb = {
+        type = "server",
+        port = "${port}",
+        executable = {
+          command = "codelldb",
+          args = { "--port", "${port}" },
+        },
+      }
+
+      -- Remembered per session so you only type the binary path once.
+      local last_binary = nil
+
+      dap.configurations.c = {
+        {
+          name = "Launch binary",
+          type = "codelldb",
+          request = "launch",
+          program = function()
+            local default = last_binary or (vim.fn.getcwd() .. "/")
+            local path = vim.fn.input("Path to executable: ", default, "file")
+            last_binary = path
+            return path
+          end,
+          cwd = "${workspaceFolder}",
+          stopOnEntry = false,
+          args = function()
+            return vim.split(vim.fn.input "Args: ", " ", { trimempty = true })
+          end,
+        },
+      }
+
+      dap.configurations.cpp = dap.configurations.c
+      dap.configurations.rust = dap.configurations.c
 
       vim.keymap.set("n", "<space>b", dap.toggle_breakpoint)
       vim.keymap.set("n", "<space>rb", dap.run_to_cursor)

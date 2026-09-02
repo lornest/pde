@@ -11,8 +11,8 @@ return {
   {
     "neovim/nvim-lspconfig",
     dependencies = {
-      "williamboman/mason.nvim",
-      "williamboman/mason-lspconfig.nvim",
+      "mason-org/mason.nvim",
+      "mason-org/mason-lspconfig.nvim",
       "WhoIsSethDaniel/mason-tool-installer.nvim",
 
       { "j-hui/fidget.nvim", opts = {} },
@@ -46,13 +46,11 @@ return {
         return
       end
 
-      local capabilities = nil
-      if pcall(require, "cmp_nvim_lsp") then
-        capabilities = require("cmp_nvim_lsp").default_capabilities()
-      end
-
+      -- Per-server overrides. `true` means "install it, use the defaults that
+      -- nvim-lspconfig ships in its `lsp/` directory".
       local servers = {
         bashls = true,
+        clangd = true,
         gopls = {
           settings = {
             gopls = {
@@ -146,37 +144,45 @@ return {
         "stylua",
         "lua_ls",
         "delve",
+        "codelldb",
         -- "tailwind-language-server",
       }
 
       vim.list_extend(ensure_installed, servers_to_install)
       require("mason-tool-installer").setup { ensure_installed = ensure_installed }
 
-      local lspconfig = require "lspconfig"
+      -- Broadcast the extra completion capabilities from nvim-cmp to every
+      -- server. `vim.lsp.config('*', ...)` is merged into all configs.
+      if pcall(require, "cmp_nvim_lsp") then
+        vim.lsp.config("*", {
+          capabilities = require("cmp_nvim_lsp").default_capabilities(),
+        })
+      end
+
+      -- `server_capabilities` is our own key, handled in LspAttach below, so
+      -- strip it before handing the table to vim.lsp.config.
+      for name, config in pairs(servers) do
+        if type(config) == "table" then
+          local settings = vim.deepcopy(config)
+          settings.manual_install = nil
+          settings.server_capabilities = nil
+          if not vim.tbl_isempty(settings) then
+            vim.lsp.config(name, settings)
+          end
+        end
+      end
+
+      -- mason-lspconfig enables every server it installs (`automatic_enable`),
+      -- so we only need to enable the ones Mason does not manage.
+      require("mason-lspconfig").setup()
+      for name, config in pairs(servers) do
+        if type(config) == "table" and config.manual_install then
+          vim.lsp.enable(name)
+        end
+      end
 
       local disable_semantic_tokens = {
         lua = true,
-      }
-
-      require("mason-lspconfig").setup {
-        handlers = {
-          function(server_name)
-            if not lspconfig[server_name] then
-              return
-            end
-            local config = servers[server_name]
-            if config == false then
-              return
-            end
-            if config == true then
-              config = {}
-            end
-            config = vim.tbl_deep_extend("force", {}, {
-              capabilities = capabilities,
-            }, config or {})
-            lspconfig[server_name].setup(config)
-          end,
-        },
       }
 
       vim.api.nvim_create_autocmd("LspAttach", {
@@ -200,7 +206,7 @@ return {
           vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = bufnr, desc = "Hover Documentation" })
           vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, { buffer = bufnr, desc = "Signature Help" })
 
-          vim.keymap.set("n", "<space>cr", function()
+          vim.keymap.set("n", "<leader>cr", function()
             return ":IncRename " .. vim.fn.expand "<cword>"
           end, { buffer = bufnr, desc = "Rename Symbol", expr = true })
           vim.keymap.set({ "n", "v" }, "<space>ca", require("actions-preview").code_actions, { buffer = bufnr, desc = "Code Action" })
@@ -256,7 +262,7 @@ return {
 
           require("conform").format {
             bufnr = args.buf,
-            lsp_fallback = true,
+            lsp_format = "fallback",
             quiet = true,
           }
         end,

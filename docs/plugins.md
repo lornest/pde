@@ -15,11 +15,19 @@ The modern plugin manager for NeoVim. Plugins are lazy-loaded for fast startup.
 ## LSP & Completion
 
 ### nvim-lspconfig
-Core LSP configuration with Mason for automatic server installation.
+Server configurations for Neovim's built-in LSP client, with Mason for automatic
+installation.
+
+Servers are declared with `vim.lsp.config()` and enabled with `vim.lsp.enable()`
+(Neovim 0.11+). The legacy `require('lspconfig').<server>.setup{}` framework is
+deprecated upstream and is no longer used here. `mason-lspconfig` enables each
+installed server automatically; per-server overrides live in the `servers` table
+in `lua/custom/plugins/lsp.lua`.
 
 **Configured Servers:**
 | Language | Server |
 |----------|--------|
+| C / C++ | clangd |
 | Go | gopls (with inlay hints) |
 | Lua | lua_ls |
 | Rust | rust_analyzer |
@@ -34,7 +42,8 @@ Core LSP configuration with Mason for automatic server installation.
 | TOML | taplo |
 
 ### mason.nvim
-Portable package manager for LSP servers, formatters, and linters.
+Portable package manager for LSP servers, formatters, linters, and debug adapters.
+Now maintained under the `mason-org` organisation (previously `williamboman`).
 
 **Commands:**
 - `:Mason` - Open Mason UI
@@ -67,6 +76,10 @@ Formatting on save.
 | Python | autoflake, black |
 | Blade | blade-formatter |
 
+Anything without an explicit formatter falls back to LSP formatting
+(`lsp_format = "fallback"`). C/C++ is formatted by clangd this way, which honours
+a project's `.clang-format` file.
+
 ### lazydev.nvim
 Enhanced Lua development with proper type support for NeoVim APIs.
 
@@ -94,14 +107,6 @@ Fuzzy finder for everything.
 - `ui-select` - Use telescope for vim.ui.select
 - `smart-history` - Persistent search history
 
-### flash.nvim
-Enhanced motions with labels.
-
-**Modes:**
-- `s` - Jump to any character with 1-2 keystrokes
-- `S` - Select treesitter nodes
-- Works in operator-pending mode for actions like `ds` (delete surrounding)
-
 ### oil.nvim
 File explorer that works like a buffer. Edit filenames, delete files, create directories - all with normal vim commands.
 
@@ -118,13 +123,37 @@ Pretty diagnostics, references, and quickfix lists.
 ## Treesitter
 
 ### nvim-treesitter
-Syntax highlighting and code understanding.
+Installs tree-sitter parsers and queries. Tracks the **`main`** branch — the old
+`master` branch is frozen and does not support Neovim 0.12.
+
+On `main` the plugin *only* manages parsers and queries; the features themselves
+are enabled per-filetype by a `FileType` autocmd in
+`lua/custom/plugins/treesitter.lua`:
+
+| Feature | Provided by |
+|---------|-------------|
+| Highlighting | `vim.treesitter.start()` (Neovim core) |
+| Indentation | `nvim-treesitter`'s `indentexpr()` |
+| Injections | Neovim core, no setup needed |
+
+Parsers install to `~/.local/share/nvim/site/parser/`. Requires the
+`tree-sitter` CLI (`brew install tree-sitter-cli`) and a C compiler.
+
+Parsers not in the list below are installed automatically the first time you open
+a matching filetype.
 
 **Installed Parsers:**
-bash, c, css, dockerfile, go, gomod, gosum, gowork, html, javascript, json, jsonc, lua, luadoc, markdown, markdown_inline, php, python, regex, rust, svelte, toml, tsx, typescript, vim, vimdoc, yaml, zig
+bash, c, css, dockerfile, go, gomod, gosum, gowork, html, javascript, json, lua,
+luadoc, markdown, markdown_inline, php, python, regex, rust, svelte, toml, tsx,
+typescript, vim, vimdoc, yaml, zig
+
+> `jsonc` uses the `json` parser, so it is not listed separately.
+> Incremental selection (`<C-Space>`) was removed — `main` dropped that module.
 
 ### nvim-treesitter-textobjects
-Code-aware text objects and movements.
+Code-aware text objects and movements. Also tracks the **`main`** branch;
+keymaps are defined explicitly in `lua/custom/plugins/treesitter.lua` rather
+than through a config table.
 
 **Text Objects:**
 - Functions (`af`, `if`)
@@ -169,6 +198,7 @@ Collection of small utilities by Folke.
 | indent | Indentation guides |
 | input | Better vim.ui.input |
 | notifier | Notification system |
+| picker | Fuzzy picker |
 | quickfile | Fast file opener |
 | scroll | Smooth scrolling |
 | statuscolumn | Enhanced status column |
@@ -251,7 +281,33 @@ Debug Adapter Protocol support.
 - `nvim-dap-ui` - Debugging UI
 - `nvim-dap-virtual-text` - Inline variable values
 
+**Adapters:**
+| Languages | Adapter |
+|-----------|---------|
+| Go | delve (via `nvim-dap-go`) |
+| C / C++ / Rust | codelldb |
+
+Both are installed by Mason. The codelldb launch configuration prompts for the
+binary to run and remembers it for the rest of the session.
+
 **Auto-open:** DAP UI opens automatically on debug start.
+
+---
+
+## AI Assistance
+
+### opencode.nvim
+Drives an [opencode](https://opencode.ai) session from inside Neovim, rendered in
+a snacks terminal.
+
+**Features:**
+- Ask about, review, explain, test or fix the current buffer or selection
+- `go` operator to send an arbitrary range as context
+- Session management (new, list, interrupt)
+- Live reload when opencode edits files on disk (`autoread`)
+- Status shown in lualine
+
+See [Keymaps](keymaps.md#opencode-ai-assistant) for the full `<leader>o` list.
 
 ---
 
