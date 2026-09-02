@@ -130,23 +130,51 @@ return {
         },
       }
 
+      -- Mason installs these with `go install`, so without a Go toolchain they
+      -- fail on every launch and pop up an error each time.
+      local needs_go = { gopls = true, delve = true, templ = true }
+      local has_go = vim.fn.executable "go" == 1
+
+      -- True when something outside Mason already provides the executable --
+      -- e.g. clangd from apt on arm64 Linux, where Mason has no build for the
+      -- platform and would fail forever. Deliberately ignores Mason's own bin
+      -- directory so Mason keeps managing what it installed.
+      local mason_root = vim.fs.joinpath(vim.fn.stdpath "data", "mason")
+      local function system_provides(server)
+        local resolved = vim.lsp.config[server]
+        local cmd = resolved and resolved.cmd
+        local exe = type(cmd) == "table" and cmd[1] or nil
+        if not exe then
+          return false
+        end
+        local path = vim.fn.exepath(exe)
+        return path ~= "" and not vim.startswith(path, mason_root)
+      end
+
       local servers_to_install = vim.tbl_filter(function(key)
         local t = servers[key]
-        if type(t) == "table" then
-          return not t.manual_install
-        else
-          return t
+        if not t then
+          return false
         end
+        if type(t) == "table" and t.manual_install then
+          return false
+        end
+        if needs_go[key] and not has_go then
+          return false
+        end
+        return not system_provides(key)
       end, vim.tbl_keys(servers))
 
       require("mason").setup()
       local ensure_installed = {
         "stylua",
         "lua_ls",
-        "delve",
         "codelldb",
         -- "tailwind-language-server",
       }
+      if has_go then
+        table.insert(ensure_installed, "delve")
+      end
 
       vim.list_extend(ensure_installed, servers_to_install)
       require("mason-tool-installer").setup { ensure_installed = ensure_installed }
