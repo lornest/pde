@@ -1,6 +1,8 @@
+-- Default theme. On Omarchy the system theme is used instead, see `custom/omarchy.lua`.
 return {
   "f4z3r/gruvbox-material.nvim",
   name = "gruvbox-material",
+  cond = not require("custom.omarchy").enabled,
   lazy = false,
   priority = 1000,
   opts = {

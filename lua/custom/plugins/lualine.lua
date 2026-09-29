@@ -3,7 +3,8 @@ return {
   opts = {
     options = {
       icons_enabled = true,
-      theme = "codedark",
+      -- "auto" follows the Omarchy theme
+      theme = require("custom.omarchy").enabled and "auto" or "codedark",
       component_separators = "|",
       section_separators = "",
     },

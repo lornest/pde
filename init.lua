@@ -27,3 +27,6 @@ require("lazy").setup({ import = "custom/plugins" }, {
     notify = false,
   },
 })
+
+-- On Omarchy, follow the system theme (no-op elsewhere)
+require("custom.omarchy").setup()
