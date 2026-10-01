@@ -175,8 +175,8 @@
 
 | Key | Action |
 |-----|--------|
-| `<leader>a` | Swap argument with next |
-| `<leader>A` | Swap argument with previous |
+| `<leader>>` | Swap argument with next |
+| `<leader><` | Swap argument with previous |
 
 ## Completion (nvim-cmp)
 

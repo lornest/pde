@@ -168,11 +168,11 @@ return {
         end
       end
 
-      vim.keymap.set("n", "<leader>a", function()
+      vim.keymap.set("n", "<leader>>", function()
         swap.swap_next "@parameter.inner"
       end, { desc = "Swap next parameter" })
 
-      vim.keymap.set("n", "<leader>A", function()
+      vim.keymap.set("n", "<leader><", function()
         swap.swap_previous "@parameter.inner"
       end, { desc = "Swap previous parameter" })
     end,

@@ -1,3 +1,26 @@
+-- Pick any folder under $HOME, cd into it, then restore its session or open the file picker
+local function open_folder()
+  local home = vim.fn.expand "~"
+  Snacks.picker.pick {
+    title = "Open Folder",
+    finder = "proc",
+    cmd = "fd",
+    args = { "--type", "d", "--color", "never", "--exclude", ".git" },
+    cwd = home,
+    transform = function(item)
+      item.file = home .. "/" .. item.text
+    end,
+    format = "file",
+    preview = "directory",
+    confirm = "load_session",
+  }
+end
+
+-- Recently opened projects, plus any repo directly under ~, ~/Projects or ~/Work
+local function open_project()
+  Snacks.picker.projects { dev = { "~", "~/Projects", "~/Work" } }
+end
+
 return {
   "folke/snacks.nvim",
   priority = 1000,
@@ -12,6 +35,8 @@ return {
           { icon = " ", key = "f", desc = "Find File", action = ":lua Snacks.dashboard.pick('files')" },
           { icon = " ", key = "g", desc = "Live Grep", action = ":lua Snacks.dashboard.pick('live_grep')" },
           { icon = " ", key = "r", desc = "Recent Files", action = ":lua Snacks.dashboard.pick('oldfiles')" },
+          { icon = " ", key = "o", desc = "Open Folder", action = open_folder },
+          { icon = " ", key = "p", desc = "Projects", action = open_project },
           { icon = " ", key = "s", desc = "Restore Session", action = ":lua require('persistence').load()" },
           { icon = " ", key = "c", desc = "Config", action = ":lua Snacks.dashboard.pick('files', {cwd = vim.fn.stdpath('config')})" },
           { icon = "󰒲 ", key = "l", desc = "Lazy", action = ":Lazy" },
@@ -87,6 +112,14 @@ return {
             action = function()
               Snacks.dashboard.pick "oldfiles"
             end,
+          },
+          {
+            name = "  Open Folder",
+            action = open_folder,
+          },
+          {
+            name = "  Projects",
+            action = open_project,
           },
           {
             name = "  Config",
