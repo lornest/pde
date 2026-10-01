@@ -1,6 +1,8 @@
 require("telescope").setup {
-  extensions = {
+  defaults = {
     wrap_results = true,
+  },
+  extensions = {
     ["ui-select"] = {
       require("telescope.themes").get_dropdown {},
     },

@@ -170,10 +170,14 @@ return {
         "stylua",
         "lua_ls",
         "codelldb",
+        "blade-formatter",
         -- "tailwind-language-server",
       }
       if has_go then
         table.insert(ensure_installed, "delve")
+      end
+      if vim.fn.executable "python3" == 1 or vim.fn.executable "python" == 1 then
+        vim.list_extend(ensure_installed, { "autoflake", "black" })
       end
 
       vim.list_extend(ensure_installed, servers_to_install)
@@ -246,7 +250,7 @@ return {
           vim.keymap.set("n", "gT", vim.lsp.buf.type_definition, { buffer = bufnr, desc = "Goto Type Definition" })
           vim.keymap.set("n", "gI", builtin.lsp_implementations, { buffer = bufnr, desc = "Goto Implementation" })
           vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = bufnr, desc = "Hover Documentation" })
-          vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, { buffer = bufnr, desc = "Signature Help" })
+          vim.keymap.set("n", "<leader>ck", vim.lsp.buf.signature_help, { buffer = bufnr, desc = "Signature Help" })
 
           vim.keymap.set("n", "<leader>cr", function()
             return ":IncRename " .. vim.fn.expand "<cword>"
@@ -305,7 +309,6 @@ return {
           require("conform").format {
             bufnr = args.buf,
             lsp_format = "fallback",
-            quiet = true,
           }
         end,
       })

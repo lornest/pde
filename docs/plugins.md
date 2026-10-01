@@ -226,8 +226,8 @@ Popup showing available keybindings.
 ### lualine.nvim
 Fast statusline with codedark theme.
 
-### indent-blankline.nvim
-Indentation guides with scope highlighting.
+### Snacks indent
+Indentation guides with scope highlighting. Toggle with `<leader>ug`.
 
 ### nvim-colorizer.lua
 Highlight color codes in files.

@@ -83,7 +83,7 @@
 | Key | Action |
 |-----|--------|
 | `K` | Hover documentation |
-| `<C-k>` | Signature help |
+| `<leader>ck` | Signature help |
 
 ### Actions
 
