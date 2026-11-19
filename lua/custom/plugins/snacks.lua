@@ -12,7 +12,19 @@ local function open_folder()
     end,
     format = "file",
     preview = "directory",
-    confirm = "load_session",
+    confirm = function(picker, item)
+      require("snacks.picker.actions").load_session(picker, item)
+      -- A restored session may leave an Oil buffer pointing outside the chosen folder
+      -- (whatever was being browsed when the session was saved); re-point it at the folder.
+      vim.schedule(function()
+        local name = vim.api.nvim_buf_get_name(0)
+        local dir = name:match "^oil://(.*)"
+        local cwd = vim.fn.getcwd()
+        if dir and not vim.startswith(vim.fs.normalize(dir), cwd) then
+          require("oil").open(cwd)
+        end
+      end)
+    end,
   }
 end
 
